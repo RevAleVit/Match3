@@ -42,7 +42,7 @@ public class FieldController : MonoBehaviour
             tilesOnField[i] = new Tile[size];
             for(int j = 0; j < size; j++)                                       //Generate tiles in current column
             {
-                tilesOnField[i][j] = TilesStash.GetTile();                      //Try apply tile from stash
+                /*tilesOnField[i][j] = TilesStash.GetTile();                      //Try apply tile from stash
 
                 if(tilesOnField[i][j] == null)                                  //Check for existing tile
                     tilesOnField[i][j] = Instantiate(prefabTile, transform);    //Instantiate new tile
@@ -57,9 +57,32 @@ public class FieldController : MonoBehaviour
                 (j > 1 && tileColor == tilesOnField[i][j - 1].tileColor && tileColor == tilesOnField[i][j - 2].tileColor)     //Check for ready match by y
                 );
                 
-                tilesOnField[i][j].Reset(tileColor, new Vector2(i, j));
+                tilesOnField[i][j].Reset(tileColor, new Vector2(i, j));*/
+                tilesOnField[i][j] = GenerateNewTile(new Vector2(i, j));
             }
         }
+    }
+
+    private Tile GenerateNewTile(Vector2 adress)
+    {
+        Tile tile;
+        tile = TilesStash.GetTile();                      //Try apply tile from stash
+
+        if (tile == null)                                  //Check for existing tile
+            tile = Instantiate(prefabTile, transform);    //Instantiate new tile
+
+        tile.transform.localPosition = new Vector2(adress.x, adress.y);
+        TileColor tileColor;
+        do
+        {
+            tileColor = (TileColor)Random.Range(0, System.Enum.GetValues(typeof(TileColor)).Length);
+        } while ( //Generate new color while there is a ready match. - Protect from pregenerated matches
+        ((int)adress.x > 1 && tileColor == tilesOnField[(int)adress.x - 1][(int)adress.y].tileColor && tileColor == tilesOnField[(int)adress.x - 2][(int)adress.y].tileColor) ||  //Check for ready match by x
+        ((int)adress.y > 1 && tileColor == tilesOnField[(int)adress.x][(int)adress.y - 1].tileColor && tileColor == tilesOnField[(int)adress.x][(int)adress.y - 2].tileColor)     //Check for ready match by y
+        );
+
+        tile.Reset(tileColor, new Vector2(adress.x, adress.y));
+        return tile;
     }
 
     public void ClickOn(Tile tile)
@@ -83,9 +106,12 @@ public class FieldController : MonoBehaviour
             {                                       //Tiles are proximity
                 SwapTiles(selectedTile, tile);      //Swap tiles
 
-                List<Tile> tilesForBurst = CheckMatch(selectedTile.adress, tile.adress);
+                List<Tile> tilesForBurst = CheckAdressesForMatch(new Vector2[] { selectedTile.adress, tile.adress });
                 if (tilesForBurst.Count <= 0)
+                {
                     SwapTiles(selectedTile, tile);  //Swap tiles back if no matches ready
+                    Debug.Log("Swapback");
+                }
                 else
                 {
                     BurstTiles(tilesForBurst);      //Burst matched tiles
@@ -113,76 +139,72 @@ public class FieldController : MonoBehaviour
         second.SetColor(tmpColor);
     }
 
-    private List<Tile> CheckMatchesOnAllField(Vector2 adress1, Vector2 adress2)
+    private List<Tile> CheckMatchesOnAllField()
     {
         List<Tile> tilesForBurst = new List<Tile>();
 
-        for (int i = 1; i < tilesOnField[0].Length; i++)
+        Vector2[] adressesForCheck = new Vector2[tilesOnField[0].Length];
+        for (int i = 0; i < tilesOnField[0].Length; i++)
         {
-            //Check every lines and columns
-            //Add founded matches to list for burst tiles
-            //Send adresses of current(i) column&line and previous column&line
-            tilesForBurst.AddRange(CheckMatch(new Vector2(i - 1, i - 1), new Vector2(i, i)));
+            adressesForCheck[i] = new Vector2(i, i);
+        }
+
+        return CheckAdressesForMatch(adressesForCheck);
+    }
+
+    private List<Tile> CheckAdressesForMatch(Vector2[] adresses)
+    {
+        List<Tile> tilesForBurst = new List<Tile>();
+
+        foreach(Vector2 adress in adresses)
+        {
+            tilesForBurst.AddRange(CheckColumnForMatch((int)adress.x));
+            tilesForBurst.AddRange(CheckRowForMatch((int)adress.y));
         }
 
         return tilesForBurst;
     }
 
-    private List<Tile> CheckMatch(Vector2 adress1, Vector2 adress2)
+    private List<Tile> CheckRowForMatch(int index)
     {
         List<Tile> tilesForBurst = new List<Tile>();
+        List<Tile> tilesForMatch = new List<Tile>();       //List of tiles for match
 
-        List<Tile> tilesForMatch1 = new List<Tile>();       //List of tiles for  match by first adress
-        List<Tile> tilesForMatch2 = new List<Tile>();       //List of tiles for  match by second adress
-        tilesForMatch1.Add(tilesOnField[0][(int)adress1.y]);
-        tilesForMatch2.Add(tilesOnField[0][(int)adress2.y]);
-        for (int i = 1; i < tilesOnField[0].Length; i++)    //Check lines  
+        tilesForMatch.Add(tilesOnField[0][index]);
+        for (int i = 1; i < tilesOnField[0].Length; i++)
         {
-            if (tilesOnField[i][(int)adress1.y].tileColor != tilesOnField[i - 1][(int)adress1.y].tileColor)     //Check line by adress 1
+            if (tilesOnField[i][index].tileColor != tilesOnField[i - 1][index].tileColor)
             {
-                if (tilesForMatch1.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch1);
-                tilesForMatch1.Clear();
+                if (tilesForMatch.Count >= 3)
+                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForMatch.Clear();
             }
-            tilesForMatch1.Add(tilesOnField[i][(int)adress1.y]);
-
-            if (adress1.y != adress2.y)                                                                         //Not check already checked tiles
-            {
-                if (tilesOnField[i][(int)adress2.y].tileColor != tilesOnField[i - 1][(int)adress2.y].tileColor) //Check line by adress 2
-                {
-                    if (tilesForMatch2.Count >= 3)
-                        tilesForBurst.AddRange(tilesForMatch2);
-                    tilesForMatch2.Clear();
-                }
-                tilesForMatch2.Add(tilesOnField[i][(int)adress2.y]);
-            }
+            tilesForMatch.Add(tilesOnField[i][index]);            
         }
+        if (tilesForMatch.Count >= 3) //Check match with last tile
+            tilesForBurst.AddRange(tilesForMatch);
 
-        tilesForMatch1.Clear();
-        tilesForMatch2.Clear();
-        tilesForMatch1.Add(tilesOnField[(int)adress1.x][0]);
-        tilesForMatch2.Add(tilesOnField[(int)adress2.x][0]);
-        for (int j = 1; j < tilesOnField[0].Length; j++)    //Check columns
+        return tilesForBurst;
+    }
+
+    private List<Tile> CheckColumnForMatch(int index)
+    {
+        List<Tile> tilesForBurst = new List<Tile>();
+        List<Tile> tilesForMatch = new List<Tile>();       //List of tiles for match
+
+        tilesForMatch.Add(tilesOnField[index][0]);
+        for (int j = 1; j < tilesOnField[0].Length; j++)
         {
-            if (tilesOnField[(int)adress1.x][j].tileColor != tilesOnField[(int)adress1.x][j - 1].tileColor)     //Check column by  adress 1
+            if (tilesOnField[index][j].tileColor != tilesOnField[index][j - 1].tileColor)
             {
-                if (tilesForMatch1.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch1);
-                tilesForMatch1.Clear();
+                if (tilesForMatch.Count >= 3)
+                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForMatch.Clear();
             }
-            tilesForMatch1.Add(tilesOnField[(int)adress1.x][j]);
-
-            if (adress1.x != adress2.x)                                                                         //Not check already checked tiles
-            {
-                if (tilesOnField[(int)adress2.x][j].tileColor != tilesOnField[(int)adress2.x][j - 1].tileColor) //Check column by  adress 2
-                {
-                    if (tilesForMatch2.Count >= 3)
-                        tilesForBurst.AddRange(tilesForMatch2);
-                    tilesForMatch2.Clear();
-                }
-                tilesForMatch2.Add(tilesOnField[(int)adress2.x][j]);
-            }
+            tilesForMatch.Add(tilesOnField[index][j]);
         }
+        if (tilesForMatch.Count >= 3) //Check match with last tile
+            tilesForBurst.AddRange(tilesForMatch);
 
         return tilesForBurst;
     }
@@ -197,5 +219,42 @@ public class FieldController : MonoBehaviour
                 tilesOnField[(int)tile.adress.x][(int)tile.adress.y] = null;
             }
         }
-    }   
+        Invoke("Tilefall", 1f);
+    }
+
+    private void Tilefall()
+    {
+        for(int i = 0; i < tilesOnField[0].Length; i ++)
+        {
+            for (int j = 0; j < tilesOnField[0].Length; j++)
+            {
+                if (tilesOnField[i][j] == null)
+                    ColumnFall(new Vector2(i, j));
+            }
+        }
+
+        BurstTiles(CheckMatchesOnAllField()); //Check matches after fall
+    }
+
+    private void ColumnFall(Vector2 adress) //Send adress of tile to falling on it
+    {
+        int i = (int)adress.y; //index of upper empty tile in column
+        for (int j = i + 1; j < tilesOnField[0].Length; j ++) //Fall exist tiles
+        {
+            if(tilesOnField[(int)adress.x][j] != null) //Check tile for non empty
+            {
+                tilesOnField[(int)adress.x][i] = tilesOnField[(int)adress.x][j]; //Fall tile on upper empty
+                tilesOnField[(int)adress.x][i].adress = new Vector2(adress.x, i); //Set tile new adress
+                tilesOnField[(int)adress.x][i].transform.localPosition = tilesOnField[(int)adress.x][i].adress; //Change tile position
+                tilesOnField[(int)adress.x][j] = null;
+                i++; //Increase upper empty
+                j = i + 1;
+            }
+        }
+
+        for(; i < tilesOnField[0].Length; i++) //Create new tiles on top
+        {
+            tilesOnField[(int)adress.x][i] = GenerateNewTile(new Vector2(adress.x,i));
+        }
+    }
 }

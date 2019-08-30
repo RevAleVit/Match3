@@ -13,8 +13,9 @@ public class TilesStash : ScriptableObject
         {
             tile =  tiles[0];
             tiles.RemoveAt(0);
+            tile.gameObject.SetActive(true);
         }
-
+        
         return tile;
     }
 
