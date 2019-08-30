@@ -21,7 +21,7 @@ public class TilesStash : ScriptableObject
 
     public static void AddTile(Tile tile)
     {
-        if (!tiles.Exists(item => tile.gameObject == tile.gameObject)) //Check for tile already exists in stash
+        if (!tiles.Exists(item => item.gameObject == tile.gameObject)) //Check for tile already exists in stash
             tiles.Add(tile);
 
         tile.gameObject.SetActive(false);
