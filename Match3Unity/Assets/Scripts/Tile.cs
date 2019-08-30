@@ -24,12 +24,7 @@ public class Tile : MonoBehaviour
     [SerializeField] private Sprite spriteOrange;
 
     [Space]
-    [SerializeField] private ParticleSystem BurstParticle;
-
-    public void Start()
-    {
-        SetColor((TileColor)Random.Range(0, 5));
-    }
+    [SerializeField] private ParticleSystem burstFx;
 
     public void Reset(TileColor color, Vector2 adress)
     {
@@ -37,7 +32,7 @@ public class Tile : MonoBehaviour
         this.adress = adress;
     }
 
-    private void SetColor(TileColor color)
+    public void SetColor(TileColor color)
     {
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
 
@@ -70,11 +65,13 @@ public class Tile : MonoBehaviour
 
     public void Burst()
     {
-        Destroy(gameObject, 0.5f);
+        if (burstFx != null)
+            burstFx.Play();
+
+        Invoke("SendItToStash", 0.5f);
     }
 
-    private void OnMouseDown()
-    {
-        FieldController.instance.ClickOn(this);
-    }
+    private void SendItToStash() => TilesStash.AddTile(this);
+
+    private void OnMouseDown() => FieldController.instance.ClickOn(this);
 }
