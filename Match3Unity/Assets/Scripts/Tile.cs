@@ -14,25 +14,38 @@ public enum TileColor
 public class Tile : MonoBehaviour
 {
     private SpriteRenderer spriteRenderer;
-    public Vector2 adress;
 
-    [SerializeField] public TileColor tileColor;
+    public Vector2 adress { get; private set; }
+    public TileColor tileColor { get; private set; }
+
     [SerializeField] private Sprite spriteCyan;
     [SerializeField] private Sprite spriteMagenta;
     [SerializeField] private Sprite spriteYellow;
     [SerializeField] private Sprite spriteBlue;
     [SerializeField] private Sprite spriteOrange;
 
-    [Space]
-    [SerializeField] private ParticleSystem burstFx;
+    Coroutine translateToNewPosition;
 
-    public void Reset(TileColor color, Vector2 adress)
+    public void ResetAdress(Vector2 adress)
     {
-        SetColor(color);
         this.adress = adress;
+
+        if (translateToNewPosition != null)         //Check for tile alredy in move
+            StopCoroutine(translateToNewPosition);  //Stop tile mooving
+
+        translateToNewPosition = StartCoroutine(TranslateToNewPosition(new Vector3(adress.x, adress.y))); //Start move tile to new position
     }
 
-    public void SetColor(TileColor color)
+    IEnumerator TranslateToNewPosition(Vector3 newPosition)
+    {
+        while (transform.localPosition != newPosition)
+        {
+            transform.localPosition = Vector3.MoveTowards(transform.localPosition, newPosition, 0.5f);
+            yield return new WaitForSeconds(0.03f);
+        }
+    }
+
+    public void ResetColor(TileColor color)
     {
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
 
@@ -65,13 +78,8 @@ public class Tile : MonoBehaviour
 
     public void Burst()
     {
-        if (burstFx != null)
-            burstFx.Play();
-
-        Invoke("SendItToStash", 0.5f);
+        TilesStash.AddTile(this);
     }
-
-    private void SendItToStash() => TilesStash.AddTile(this);
 
     private void OnMouseDown() => FieldController.instance.ClickOn(this);
 }

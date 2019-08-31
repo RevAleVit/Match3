@@ -41,25 +41,7 @@ public class FieldController : MonoBehaviour
         {
             tilesOnField[i] = new Tile[size];
             for(int j = 0; j < size; j++)                                       //Generate tiles in current column
-            {
-                /*tilesOnField[i][j] = TilesStash.GetTile();                      //Try apply tile from stash
-
-                if(tilesOnField[i][j] == null)                                  //Check for existing tile
-                    tilesOnField[i][j] = Instantiate(prefabTile, transform);    //Instantiate new tile
-
-                tilesOnField[i][j].transform.localPosition = new Vector2(i, j);
-                TileColor tileColor;
-                do
-                {
-                    tileColor = (TileColor)Random.Range(0, System.Enum.GetValues(typeof(TileColor)).Length);
-                } while ( //Generate new color while there is a ready match
-                (i > 1 && tileColor == tilesOnField[i - 1][j].tileColor && tileColor == tilesOnField[i - 2][j].tileColor) ||  //Check for ready match by x
-                (j > 1 && tileColor == tilesOnField[i][j - 1].tileColor && tileColor == tilesOnField[i][j - 2].tileColor)     //Check for ready match by y
-                );
-                
-                tilesOnField[i][j].Reset(tileColor, new Vector2(i, j));*/
                 tilesOnField[i][j] = GenerateNewTile(new Vector2(i, j));
-            }
         }
     }
 
@@ -71,7 +53,6 @@ public class FieldController : MonoBehaviour
         if (tile == null)                                  //Check for existing tile
             tile = Instantiate(prefabTile, transform);    //Instantiate new tile
 
-        tile.transform.localPosition = new Vector2(adress.x, adress.y);
         TileColor tileColor;
         do
         {
@@ -81,7 +62,9 @@ public class FieldController : MonoBehaviour
         ((int)adress.y > 1 && tileColor == tilesOnField[(int)adress.x][(int)adress.y - 1].tileColor && tileColor == tilesOnField[(int)adress.x][(int)adress.y - 2].tileColor)     //Check for ready match by y
         );
 
-        tile.Reset(tileColor, new Vector2(adress.x, adress.y));
+        tile.ResetColor(tileColor);
+        tile.transform.localPosition = new Vector3(adress.x, tilesOnField[0].Length - 1); //Move tile on top of column
+        tile.ResetAdress(new Vector2(adress.x, adress.y));
         return tile;
     }
 
@@ -108,10 +91,7 @@ public class FieldController : MonoBehaviour
 
                 List<Tile> tilesForBurst = CheckAdressesForMatch(new Vector2[] { selectedTile.adress, tile.adress });
                 if (tilesForBurst.Count <= 0)
-                {
                     SwapTiles(selectedTile, tile);  //Swap tiles back if no matches ready
-                    Debug.Log("Swapback");
-                }
                 else
                 {
                     BurstTiles(tilesForBurst);      //Burst matched tiles
@@ -124,19 +104,10 @@ public class FieldController : MonoBehaviour
 
     private void SwapTiles(Tile first, Tile second)
     {
-        /*tilesOnField[(int)first.adress.x][(int)first.adress.y] = tilesOnField[(int)second.adress.x][(int)second.adress.y];
-        tilesOnField[(int)second.adress.x][(int)second.adress.y] = tilesOnField[(int)first.adress.x][(int)first.adress.y];
-        Vector2 tmp = first.adress;
-        first.adress = second.adress;
-        second.adress = tmp;
-        first.transform.localPosition = first.adress;
-        second.transform.localPosition = second.adress;*/
-
-
-        //Much better, but if there is no need animation, just swap colors value and sprites
+        //Much better than phisical swap tiles, but if there is no need animation, just swap color values and sprites
         TileColor tmpColor = first.tileColor;
-        first.SetColor(second.tileColor);
-        second.SetColor(tmpColor);
+        first.ResetColor(second.tileColor);
+        second.ResetColor(tmpColor);
     }
 
     private List<Tile> CheckMatchesOnAllField()
@@ -173,13 +144,21 @@ public class FieldController : MonoBehaviour
         tilesForMatch.Add(tilesOnField[0][index]);
         for (int i = 1; i < tilesOnField[0].Length; i++)
         {
-            if (tilesOnField[i][index].tileColor != tilesOnField[i - 1][index].tileColor)
+            if (tilesOnField[index][i] == null || tilesOnField[index][i - 1] == null)
             {
                 if (tilesForMatch.Count >= 3)
                     tilesForBurst.AddRange(tilesForMatch);
                 tilesForMatch.Clear();
             }
-            tilesForMatch.Add(tilesOnField[i][index]);            
+            else
+            if (tilesOnField[i][index]==null || tilesOnField[i - 1][index] == null || tilesOnField[i][index].tileColor != tilesOnField[i - 1][index].tileColor)
+            {
+                if (tilesForMatch.Count >= 3)
+                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForMatch.Clear();
+            }
+            if (tilesOnField[index][i] != null)
+                tilesForMatch.Add(tilesOnField[i][index]);            
         }
         if (tilesForMatch.Count >= 3) //Check match with last tile
             tilesForBurst.AddRange(tilesForMatch);
@@ -195,13 +174,23 @@ public class FieldController : MonoBehaviour
         tilesForMatch.Add(tilesOnField[index][0]);
         for (int j = 1; j < tilesOnField[0].Length; j++)
         {
+            if(tilesOnField[index][j] == null || tilesOnField[index][j - 1] == null)
+            {
+                if (tilesForMatch.Count >= 3)
+                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForMatch.Clear();
+            }
+            else
             if (tilesOnField[index][j].tileColor != tilesOnField[index][j - 1].tileColor)
             {
                 if (tilesForMatch.Count >= 3)
                     tilesForBurst.AddRange(tilesForMatch);
                 tilesForMatch.Clear();
             }
-            tilesForMatch.Add(tilesOnField[index][j]);
+
+            if (tilesOnField[index][j] != null)
+                tilesForMatch.Add(tilesOnField[index][j]);
+
         }
         if (tilesForMatch.Count >= 3) //Check match with last tile
             tilesForBurst.AddRange(tilesForMatch);
@@ -219,7 +208,7 @@ public class FieldController : MonoBehaviour
                 tilesOnField[(int)tile.adress.x][(int)tile.adress.y] = null;
             }
         }
-        Invoke("Tilefall", 1f);
+        Invoke("Tilefall", 0.1f);
     }
 
     private void Tilefall()
@@ -244,17 +233,16 @@ public class FieldController : MonoBehaviour
             if(tilesOnField[(int)adress.x][j] != null) //Check tile for non empty
             {
                 tilesOnField[(int)adress.x][i] = tilesOnField[(int)adress.x][j]; //Fall tile on upper empty
-                tilesOnField[(int)adress.x][i].adress = new Vector2(adress.x, i); //Set tile new adress
-                tilesOnField[(int)adress.x][i].transform.localPosition = tilesOnField[(int)adress.x][i].adress; //Change tile position
+                tilesOnField[(int)adress.x][i].ResetAdress(new Vector2(adress.x, i)); //Set tile new adress
                 tilesOnField[(int)adress.x][j] = null;
                 i++; //Increase upper empty
-                j = i + 1;
+                j = i;
             }
         }
-
+        
         for(; i < tilesOnField[0].Length; i++) //Create new tiles on top
         {
-            tilesOnField[(int)adress.x][i] = GenerateNewTile(new Vector2(adress.x,i));
+                tilesOnField[(int)adress.x][i] = GenerateNewTile(new Vector2(adress.x,i));
         }
     }
 }
