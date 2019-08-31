@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class FieldController : MonoBehaviour
@@ -91,7 +92,12 @@ public class FieldController : MonoBehaviour
 
                 List<Tile> tilesForBurst = CheckAdressesForMatch(new Vector2[] { selectedTile.adress, tile.adress });
                 if (tilesForBurst.Count <= 0)
+                {
                     SwapTiles(selectedTile, tile);  //Swap tiles back if no matches ready
+                    selectedTile = tile;
+                    highlightFxObject.transform.position = tile.transform.position;
+                    highlightFxObject.SetActive(true);
+                }
                 else
                 {
                     BurstTiles(tilesForBurst);      //Burst matched tiles
@@ -144,24 +150,15 @@ public class FieldController : MonoBehaviour
         tilesForMatch.Add(tilesOnField[0][index]);
         for (int i = 1; i < tilesOnField[0].Length; i++)
         {
-            if (tilesOnField[index][i] == null || tilesOnField[index][i - 1] == null)
-            {
-                if (tilesForMatch.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch);
-                tilesForMatch.Clear();
-            }
-            else
             if (tilesOnField[i][index]==null || tilesOnField[i - 1][index] == null || tilesOnField[i][index].tileColor != tilesOnField[i - 1][index].tileColor)
             {
-                if (tilesForMatch.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForBurst.AddRange(GetMatch(tilesForMatch));
                 tilesForMatch.Clear();
             }
             if (tilesOnField[index][i] != null)
                 tilesForMatch.Add(tilesOnField[i][index]);            
         }
-        if (tilesForMatch.Count >= 3) //Check match with last tile
-            tilesForBurst.AddRange(tilesForMatch);
+        tilesForBurst.AddRange(GetMatch(tilesForMatch)); //Check match with last tile
 
         return tilesForBurst;
     }
@@ -174,17 +171,9 @@ public class FieldController : MonoBehaviour
         tilesForMatch.Add(tilesOnField[index][0]);
         for (int j = 1; j < tilesOnField[0].Length; j++)
         {
-            if(tilesOnField[index][j] == null || tilesOnField[index][j - 1] == null)
-            {
-                if (tilesForMatch.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch);
-                tilesForMatch.Clear();
-            }
-            else
             if (tilesOnField[index][j].tileColor != tilesOnField[index][j - 1].tileColor)
             {
-                if (tilesForMatch.Count >= 3)
-                    tilesForBurst.AddRange(tilesForMatch);
+                tilesForBurst.AddRange(GetMatch(tilesForMatch));
                 tilesForMatch.Clear();
             }
 
@@ -192,10 +181,40 @@ public class FieldController : MonoBehaviour
                 tilesForMatch.Add(tilesOnField[index][j]);
 
         }
-        if (tilesForMatch.Count >= 3) //Check match with last tile
-            tilesForBurst.AddRange(tilesForMatch);
+        tilesForBurst.AddRange(GetMatch(tilesForMatch)); //Check match with last tile
 
         return tilesForBurst;
+    }
+
+    private List<Tile> GetMatch(List<Tile> list)
+    {
+        List<Tile> tilesForBurst = new List<Tile>();
+        if (list.Count >= 5)
+        {
+            foreach (Tile[] rows in tilesOnField)
+            {
+                foreach (Tile tile in rows)
+                {
+                    if (tile.tileColor == list[0].tileColor)
+                        tilesForBurst.Add(tile);
+                }
+            }
+        }
+        else
+        if (list.Count >= 4)
+        {
+            if (list[0].adress.x == list[1].adress.x)
+                tilesForBurst.AddRange(tilesOnField[(int)list[0].adress.x].ToList());
+            else
+                for (int i = 0; i < tilesOnField.Length; i++)
+                    tilesForBurst.Add(tilesOnField[i][(int)list[0].adress.y]);
+        }
+        else
+        if (list.Count >= 3)
+            tilesForBurst.AddRange(list);
+
+
+            return tilesForBurst;
     }
 
     private void BurstTiles(List<Tile> tilesForBurst)
@@ -222,6 +241,13 @@ public class FieldController : MonoBehaviour
             }
         }
 
+        //StartCoroutine(CheckMatchesAfterFallDelay(1f));
+        BurstTiles(CheckMatchesOnAllField()); //Check matches after fall
+    }
+
+    IEnumerator CheckMatchesAfterFallDelay(float value)
+    {
+        yield return new WaitForSeconds(value);
         BurstTiles(CheckMatchesOnAllField()); //Check matches after fall
     }
 
