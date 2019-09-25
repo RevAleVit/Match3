@@ -15,7 +15,7 @@ public class Tile : MonoBehaviour
 {
     private SpriteRenderer spriteRenderer;
 
-    public Vector2 adress { get; private set; }
+    public Vector2Int adress { get; private set; }
     public TileColor tileColor { get; private set; }
 
     [SerializeField] private Sprite spriteCyan;
@@ -26,7 +26,7 @@ public class Tile : MonoBehaviour
 
     Coroutine translateToNewPosition;
 
-    public void ResetAdress(Vector2 adress)
+    public void ResetAdress(Vector2Int adress)
     {
         this.adress = adress;
 
